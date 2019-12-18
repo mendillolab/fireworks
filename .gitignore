@@ -1,0 +1,4 @@
+*.feather
+sqlData.Rds
+ga.html
+git.ignore.test
