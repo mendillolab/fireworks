@@ -1,8 +1,8 @@
 # Script: networkSQL.R
 # Author: Jasen Jackson
-# Description: THIS VERSION IS NOT TO BE SHOWN TO THE PUBLIC. Script contains
-#              functions used to build fitness interaction networks, using
-#              connection to external SQL database.  Contains sensitive information.
+# Description: Script contains functions used to build fitness interaction 
+#              networks, using connection to external SQL database. SQL 
+#              access info removed. 
 #
 #
 # require(RPostgreSQL)
