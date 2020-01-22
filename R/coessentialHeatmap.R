@@ -1,11 +1,6 @@
 # Script: coessentialHeatmap.R
 # Author: Jasen Jackson
 
-# coessentialHeatmap_local <- function(corrMat,achilles,gene,pos,neg,rank){
-#   print("Positive ")
-#   return(paste(corrMat, achilles, gene, pos, neg, rank, sep=","))
-# }
-
 draw_colnames_45 <- function (coln, gaps, ...) {
     coord <- pheatmap:::find_coordinates(length(coln), gaps)
     x     <- coord$coord - 0.5 * coord$size
