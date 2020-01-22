@@ -37,20 +37,27 @@ onStop(function() {
   poolClose(pool)
 })
 
-############## pre-load data #########################
+############## pre-load data & variables #########################
 geneNames <- strsplit(read_lines("data/gene_names.txt"),",") %>% unlist %>% as.data.table
 
+# boolean flags to check if dataset(s) have been loaded
 panCorrMat <- NULL
 achilles <- NULL
 ccleExpr <- NULL
 plotRecord <- NULL
 
+# boolean flags to check if tab 'pages' are loaded
 CEHM.page.loaded <- FALSE
 RNA.page.loaded <- FALSE
 networkTabsLoaded <- FALSE
 CEHMtabsLoaded <- FALSE
 RNAtabsLoaded <- FALSE
 
+# Convenience functions for loading 'external' datasets into memory
+# External datasets (not included in repo): 
+#     - panCancer.corr.feather (pan-cancer correlation matrix)
+#     - achilles.feather (gene x cell line essentiality data)
+#     - CCLE_expression.feather (CCLE_expression.feather)
 
 readCorrMat <- function(session, panCorrMat) {
   progress <- Progress$new(session)
@@ -76,7 +83,7 @@ readExpression <- function(session, ccleExpr) {
   progress$close()
 }
 
-############# style specifications #############
+############# style specifications (TODO: move to separate CSS script) #############
 appCSS <- "
 #loading-content {
   position: absolute;
@@ -135,18 +142,17 @@ label{font-size:12px;}
 ############# User interface #########################
 ui <- fluidPage(theme=shinytheme("paper"),
 
-
+  # top navbar
   tags$head(includeHTML("www/ga.html")),
-
   inlineCSS(appCSS),
       navbarPage(id="navbar",
 
-        # add fireworks logo to navbar
+        # add fireworks logo to navbar (TODO: change logo?)
         title=div(img(src="network-icon.png",
                       style="margin-top: -14px; padding-right:5px; padding-bottom:15px",
                       height = 60)),
 
-          ##################### UI functions for network ##########################
+          ##################### UI functions for network panel ##########################
           tabPanel("Network",
           sidebarLayout(
             position = "right",
@@ -158,6 +164,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
                           choices = c("C16orf72"),
                           selected = "C16orf72",
                           multiple = TRUE),
+                         
               # Context input
               selectizeInput("context",
                           label = "Context:",
@@ -169,9 +176,8 @@ ui <- fluidPage(theme=shinytheme("paper"),
                           selected = "Pan-Cancer",
                           multiple = FALSE),
 
-
               fluidRow(
-
+                
               # Correlation direction (primary connections)
               column(4,
                 numericInput("k_primary",
@@ -481,9 +487,7 @@ server <- function(input, output, session) {
             removeTab(inputId="networkTabs", target="Edges")
             removeTab(inputId="networkTabs", target="Download")
             networkTabsLoaded <<- FALSE
-          }
-
-          if (networkTabsLoaded==FALSE){
+          } if (networkTabsLoaded==FALSE){
             appendTab(inputId="networkTabs", tab=tabPanel("Nodes", DT::dataTableOutput("nodesTable")))
             appendTab(inputId="networkTabs", tab=tabPanel("Edges", DT::dataTableOutput("edgesTable")), select=TRUE)
             appendTab(inputId="networkTabs", tab=tabPanel("Download",
@@ -492,7 +496,6 @@ server <- function(input, output, session) {
                                                           choices = c("nodes", "edges"), selected="edges"),
                                                           downloadButton("downloadNetwork", "Download"),
                                                           HTML('<br /><br /><br />')))
-
             networkTabsLoaded <<- TRUE
           }
 
@@ -521,8 +524,8 @@ server <- function(input, output, session) {
 
             # load pan-cancer correlation matrix
             if(is.null(panCorrMat)){readCorrMat(session, panCorrMat)}
-
-            print("Use pan cancer correlation matrix!")
+            
+            # build network from corr matrix
             if (secondOrder) {
               network <- buildNetwork_local(corrMat=panCorrMat, sourceGenes=sourceGenes, k1=k1, k2=k2,
                                       pos1=pos1, neg1=neg1, pos2=pos2, neg2=neg2,
@@ -586,7 +589,7 @@ server <- function(input, output, session) {
               rownames=FALSE)
   })
 
-  # Reactive value for selected dataset
+  # Reactive value holding the selected dataset for download
   datasetNetwork <- reactive({
     switch(input$chooseDatasetNetwork,
            "nodes" = codep_network()[[1]],
@@ -602,14 +605,14 @@ server <- function(input, output, session) {
     }
   )
 
-
-
   ### load gene names for drop down
   updateSelectizeInput(session, "genes_selected", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "geneCEHM", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "genesRNA", choices = geneNames, selected=c("C16orf72"))
 
-  ##################### server functions for co-essential heatmap ##########################
+  
+  ##################### end of server functions for co-essentiality network ###################
+  ##################### beginning of server functions for co-essential heatmap ##########################
 
   # observe: clicking on co-essential heatmap
   check.cehm <- reactiveVal()
