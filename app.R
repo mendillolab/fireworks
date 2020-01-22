@@ -27,7 +27,7 @@ SQLdata <- readRDS("data/sqlData.Rds")
 pool <- dbPool(
   drv = dbDriver("PostgreSQL"),
   host=SQLdata[[1]],
-  port=SQLdata[[2]],
+  port=as.numeric(SQLdata[[2]]),
   dbname=SQLdata[[3]],
   user=SQLdata[[4]],
   password=SQLdata[[5]]
@@ -54,7 +54,7 @@ CEHMtabsLoaded <- FALSE
 RNAtabsLoaded <- FALSE
 
 # Convenience functions for loading 'external' datasets into memory
-# External datasets (not included in repo): 
+# External datasets (not included in repo):
 #     - panCancer.corr.feather (pan-cancer correlation matrix)
 #     - achilles.feather (gene x cell line essentiality data)
 #     - CCLE_expression.feather (CCLE_expression.feather)
@@ -164,7 +164,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
                           choices = c("C16orf72"),
                           selected = "C16orf72",
                           multiple = TRUE),
-                         
+
               # Context input
               selectizeInput("context",
                           label = "Context:",
@@ -177,7 +177,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
                           multiple = FALSE),
 
               fluidRow(
-                
+
               # Correlation direction (primary connections)
               column(4,
                 numericInput("k_primary",
@@ -445,7 +445,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
                       lines by dependence and perform differential expression between these
                       groups. This may not provide biologically
                       relevant results. </font>
-                      </p>')),
+                      </p>'))
       ),
 
       # Contact us
@@ -487,7 +487,9 @@ server <- function(input, output, session) {
             removeTab(inputId="networkTabs", target="Edges")
             removeTab(inputId="networkTabs", target="Download")
             networkTabsLoaded <<- FALSE
-          } if (networkTabsLoaded==FALSE){
+          }
+
+          if (networkTabsLoaded==FALSE){
             appendTab(inputId="networkTabs", tab=tabPanel("Nodes", DT::dataTableOutput("nodesTable")))
             appendTab(inputId="networkTabs", tab=tabPanel("Edges", DT::dataTableOutput("edgesTable")), select=TRUE)
             appendTab(inputId="networkTabs", tab=tabPanel("Download",
@@ -524,7 +526,7 @@ server <- function(input, output, session) {
 
             # load pan-cancer correlation matrix
             if(is.null(panCorrMat)){readCorrMat(session, panCorrMat)}
-            
+
             # build network from corr matrix
             if (secondOrder) {
               network <- buildNetwork_local(corrMat=panCorrMat, sourceGenes=sourceGenes, k1=k1, k2=k2,
@@ -610,7 +612,7 @@ server <- function(input, output, session) {
   updateSelectizeInput(session, "geneCEHM", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "genesRNA", choices = geneNames, selected=c("C16orf72"))
 
-  
+
   ##################### end of server functions for co-essentiality network ###################
   ##################### beginning of server functions for co-essential heatmap ##########################
 
