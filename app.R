@@ -394,8 +394,9 @@ ui <- fluidPage(theme=shinytheme("paper"),
       tags$div(class="aboutText",
 
       # FIREWORKS
-      h3("FIREWORKS (Fitness Interaction Ranked nEtWORKS)"),
-      HTML('<p>FIREWORKS is an interactive web tool developed to facilitate
+      #h3("FIREWORKS (Fitness Interaction Ranked nEtWORKS)"),
+      HTML('<h3>FIREWORKS (Fitness Interaction Ranked nEtWORKS) <a href="https://github.com/mendillolab/fireworks"><img src="github_icon.png"></a></h3>
+      <p>FIREWORKS is an interactive web tool developed to facilitate
       interrogation of biological networks using unbiased
       genetic screens. Gene-gene relationships can be modeled by correlating essentiality
       scores across hundreds of cancer cell lines. This application allows you to visualize these
