@@ -1,4 +1,5 @@
 library(DT)
+library(plotly)
 library(readr)
 library(data.table)
 library(pheatmap)
