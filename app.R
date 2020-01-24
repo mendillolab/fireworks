@@ -19,6 +19,7 @@ library(grid)
 library(tibble)
 library(shinyWidgets)
 library(dplyr)
+library(tidyr)
 source("R/network.R")
 source("R/coessentialHeatmap.R")
 source("R/differentialExpression.R")
@@ -254,7 +255,10 @@ ui <- fluidPage(theme=shinytheme("paper"),
 
             # View the network
             mainPanel(id="mainpanel",width="8",
-              tags$div(id="cyto",cytoscapeOutput("network", height='650px')),
+              tags$div(id="cyto",cytoscapeOutput("network", height='600px')),
+              HTML('<hr>'),
+              plotlyOutput('depBoxPlot'),
+              HTML('<hr>'),
               tabsetPanel(id="networkTabs")
            ) # main panel - pan-cancer
         ) # sidebar layout - pan-cancer
@@ -487,13 +491,17 @@ server <- function(input, output, session) {
           if (networkTabsLoaded==TRUE){
             removeTab(inputId="networkTabs", target="Nodes")
             removeTab(inputId="networkTabs", target="Edges")
+            #removeTab(inputId="networkTabs", target="Essentiality")
             removeTab(inputId="networkTabs", target="Download")
             networkTabsLoaded <<- FALSE
           }
 
           if (networkTabsLoaded==FALSE){
             appendTab(inputId="networkTabs", tab=tabPanel("Nodes", DT::dataTableOutput("nodesTable")))
-            appendTab(inputId="networkTabs", tab=tabPanel("Edges", DT::dataTableOutput("edgesTable")), select=TRUE)
+            appendTab(inputId="networkTabs", tab=tabPanel("Edges", DT::dataTableOutput("edgesTable")), select = TRUE)
+            #appendTab(inputId="networkTabs", tab=tabPanel("Essentiality",
+            #                                               HTML('<br />'),
+            #                                               plotlyOutput('depBoxPlot')), select = TRUE)
             appendTab(inputId="networkTabs", tab=tabPanel("Download",
                                                           HTML('<br />'),
                                                           selectInput("chooseDatasetNetwork", "Choose a dataset:",
@@ -581,6 +589,45 @@ server <- function(input, output, session) {
       panzoom()
   }) # output$network
 
+# generate essentiality data
+  output$depBoxPlot <- renderPlotly({
+
+    # load genetic dependency data
+    if (is.null(achilles)){readAchilles(session, achilles)}
+
+    # get network data
+    nodes <- codep_network()[[1]]
+    edges <- codep_network()[[2]]
+
+    # reshape essentiality data for plotting
+    achillesPlot <- achilles[,c("stripped_cell_line_name",
+                                "disease",
+                                nodes %>% select(id) %>% unlist)] %>%
+      gather(nodes %>% select(id) %>% unlist,
+             key="gene", value="dependency")
+
+    ## add color/name data to plot dataframe
+    # create map gene --> color
+    colMap <- nodes[,"nodeColor"]
+    names(colMap) <- nodes[,"id"]
+
+    # create color column & add to plot df
+    color = colMap[achillesPlot[,'gene'] %>% unlist]
+    achillesPlot <- cbind(achillesPlot, color)
+    print(achillesPlot[1:5,])
+
+    # plot boxplot
+    depBoxPlot <- plot_ly(achillesPlot,
+                          x = ~gene,
+                          y = ~dependency,
+                          color = ~color,
+                          type = 'box',
+                          text = ~paste(stripped_cell_line_name,
+                                        '<br>Disease:', disease),
+                          hoverinfo="text") %>%
+                  plotly::layout(title = "Essentiality of genes in network")
+  })
+
   output$nodesTable <- renderDataTable({
     datatable(codep_network()[[1]],
               options = list(pageLength=10, lengthChange=FALSE),
@@ -659,7 +706,7 @@ server <- function(input, output, session) {
     if (direction=="both"){pos=TRUE; neg=TRUE}
 
     # Load required data
-    if (is.null(achilles)){readAchilles(session, panCorrMat)}
+    if (is.null(achilles)){readAchilles(session, achilles)}
 
     # if pan-cancer: use pre-loaded matrix for pan-cancer analyses
     if (context=="Pan-Cancer"){
