@@ -1,8 +1,8 @@
 # Script: networkSQL.R
 # Author: Jasen Jackson
-# Description: Script contains functions used to build fitness interaction 
-#              networks, using connection to external SQL database. SQL 
-#              access info removed. 
+# Description: Script contains functions used to build fitness interaction
+#              networks, using connection to external SQL database. SQL
+#              access info removed.
 #
 #
 # require(RPostgreSQL)
@@ -86,6 +86,7 @@ updateNetwork <- function(nodes, edges, codeps, gene){
   if (length(newNodes)>0){
     nodes <- bind_rows(nodes, data.frame(
       id=newNodes,
+      type=rep("secondary",length(newNodes)),
       nodeColor=rep("#dedede", length(newNodes)) ) %>%
       mutate_all(as.character)
     )
@@ -160,7 +161,7 @@ findIPN <- function(nodes, edges, primaryNodes) {
 removeIPN <- function(nodes, edges, source_genes, color) {
 
   # find isolated primary nodes
-  primaryNodes <- nodes %>% filter(nodeColor=="#d6c5fc") %>% select(id) %>% unlist
+  primaryNodes <- nodes %>% filter(type=="primary") %>% select(id) %>% unlist
   isolatedPrimaryNodes <- findIPN(nodes, edges, primaryNodes)
 
   # filter edges
@@ -196,7 +197,7 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
   nodes <- data.frame(id=sourceGenes) %>% mutate_all(as.character)
   edges <- data.frame(source=sourceGenes,
                       target=sourceGenes,
-                      color=rep("#ccc", length(sourceGenes))) %>% mutate_all(as.character)
+                      color=rep("#", length(sourceGenes))) %>% mutate_all(as.character)
 
   # fill out network for each source gene
   withProgress(message = "Adding primary connections for: ", value=0,{
@@ -216,7 +217,9 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
   } # for (gene in sourceGenes)
 }) # withProgress
   edges <- edges %>% filter(source != target)
-  nodes <- nodes %>% mutate(nodeColor = ifelse(id %in% sourceGenes, "#f7895e", "#d6c5fc"))
+  nodes <- nodes %>% mutate(
+    type = ifelse(id %in% sourceGenes, "source", "primary"),
+    nodeColor = ifelse(id %in% sourceGenes, "#f7895e", "#d6c5fc"))
 
   # find secondary pools
   if (secondOrder){
