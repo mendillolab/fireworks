@@ -80,14 +80,14 @@ updateNetwork <- function(nodes, edges, codeps, gene){
   pValues <- c(posPvalues, negPvalues)
   edgeColors <- c( rep("#ff5f62",length(posGenes)),
                    rep("#5fafff", length(negGenes)) )
-  newNodes <- setdiff(coessentialGenes, nodes[,"id"])
+  newNodes <- setdiff(coessentialGenes, nodes[,"gene"])
 
   # update nodes
   if (length(newNodes)>0){
     nodes <- bind_rows(nodes, data.frame(
-      id=newNodes,
+      gene=newNodes,
       type=rep("secondary",length(newNodes)),
-      nodeColor=rep("#dedede", length(newNodes)) ) %>%
+      color=rep("#dedede", length(newNodes)) ) %>%
       mutate_all(as.character)
     )
   }
@@ -110,15 +110,15 @@ updateNetwork <- function(nodes, edges, codeps, gene){
 # remove isolated secondary nodes
 removeISN <- function(nodes, edges, source_genes, color) {
     isolatedNodes <- c()
-    secondaryNodes = nodes %>% filter(nodeColor=="#dedede")
-    secondaryNodes = secondaryNodes[,"id"]
+    secondaryNodes = nodes %>% filter(color=="#dedede")
+    secondaryNodes = secondaryNodes[,"gene"]
 
     for (gene in secondaryNodes){
       if(edges %>% filter(source == gene | target == gene) %>% nrow < 2){
         isolatedNodes <- c(gene, isolatedNodes)}}
 
     isolatedNodes <- unique(isolatedNodes)
-    nodes.filtered <- nodes %>% filter(!(id %in% isolatedNodes))
+    nodes.filtered <- nodes %>% filter(!(gene %in% isolatedNodes))
     edges.filtered <- edges %>% filter(!(target %in% isolatedNodes))
     network <- list(nodes.filtered, edges.filtered)
 }
@@ -161,7 +161,7 @@ findIPN <- function(nodes, edges, primaryNodes) {
 removeIPN <- function(nodes, edges, source_genes, color) {
 
   # find isolated primary nodes
-  primaryNodes <- nodes %>% filter(type=="primary") %>% select(id) %>% unlist
+  primaryNodes <- nodes %>% filter(type=="primary") %>% select(gene) %>% unlist
   isolatedPrimaryNodes <- findIPN(nodes, edges, primaryNodes)
 
   # filter edges
@@ -169,7 +169,7 @@ removeIPN <- function(nodes, edges, source_genes, color) {
                                      !(target %in% isolatedPrimaryNodes))
   # filter nodes not in edges
   keptNodes <- c(edges.filtered[,"source"] %>% unlist, edges.filtered[,"target"] %>% unlist) %>% unique
-  nodes.filtered <- nodes %>% filter(id %in% keptNodes)
+  nodes.filtered <- nodes %>% filter(gene %in% keptNodes)
 
   network <- list(nodes.filtered, edges.filtered)
   return(network)
@@ -194,7 +194,7 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
 
 
   # initialize network
-  nodes <- data.frame(id=sourceGenes) %>% mutate_all(as.character)
+  nodes <- data.frame(gene=sourceGenes) %>% mutate_all(as.character)
   edges <- data.frame(source=sourceGenes,
                       target=sourceGenes,
                       color=rep("#", length(sourceGenes))) %>% mutate_all(as.character)
@@ -218,8 +218,8 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
 }) # withProgress
   edges <- edges %>% filter(source != target)
   nodes <- nodes %>% mutate(
-    type = ifelse(id %in% sourceGenes, "source", "primary"),
-    nodeColor = ifelse(id %in% sourceGenes, "#f7895e", "#d6c5fc"))
+    type = ifelse(gene %in% sourceGenes, "source", "primary"),
+    color = ifelse(gene %in% sourceGenes, "#f7895e", "#d6c5fc"))
 
   # find secondary pools
   if (secondOrder){
@@ -268,7 +268,7 @@ buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
                          showIPN=TRUE, showISN=TRUE) {
 
   # initialize network with temporary node/edge (removed after the loop)
-  nodes <- data.frame(id=sourceGenes) %>% mutate_all(as.character)
+  nodes <- data.frame(gene=sourceGenes) %>% mutate_all(as.character)
   edges <- data.frame(source=sourceGenes,
                       target=sourceGenes,
                       color=rep("#ccc", length(sourceGenes))) %>% mutate_all(as.character)
@@ -292,7 +292,7 @@ buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
   }) # withProgress
 
   edges <- edges %>% filter(source != target)
-  nodes <- nodes %>% mutate(nodeColor = ifelse(id %in% sourceGenes, "#f7895e", "#d6c5fc"))
+  nodes <- nodes %>% mutate(color = ifelse(gene %in% sourceGenes, "#f7895e", "#d6c5fc"))
 
   # find secondary connections
   if (secondOrder){

@@ -20,6 +20,7 @@ library(tibble)
 library(shinyWidgets)
 library(dplyr)
 library(tidyr)
+library(visNetwork)
 source("R/network.R")
 source("R/coessentialHeatmap.R")
 source("R/differentialExpression.R")
@@ -164,7 +165,15 @@ ui <- fluidPage(theme=shinytheme("paper"),
               selectizeInput("genes_selected",
                           label = "Source node(s):",
                           choices = c("C16orf72"),
-                          selected = "C16orf72",
+                          selected = c("C16orf72"),
+                          # choices = c("EIF2AK1","EIF2AK2","EIF2AK3","EIF2AK4","TP53",
+                          #             "ATM","HSF1","HSF2","ATF5","ERN1","XBP1","EIF2AK3",
+                          #             "ATF6","HIF1A","ARNT","EPAS1","HIF3A","ATF3","EIF2AK2",
+                          #             "ATF4","ATG7","ATG5","KEAP1","NFE2L2"),
+                          # selected = c("EIF2AK1","EIF2AK2","EIF2AK3","EIF2AK4","TP53",
+                          #             "ATM","HSF1","HSF2","ATF5","ERN1","XBP1","EIF2AK3",
+                          #             "ATF6","HIF1A","ARNT","EPAS1","HIF3A","ATF3","EIF2AK2",
+                          #             "ATF4","ATG7","ATG5","KEAP1","NFE2L2"),
                           multiple = TRUE),
 
               # Context input
@@ -184,7 +193,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
               column(4,
                 numericInput("k_primary",
                              label = "Rank (primary):",
-                             value=10)),
+                             value=30)),
 
               # Rank for primary connections
               column(8,
@@ -206,7 +215,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
                             condition = "input.second_order == false",
                             checkboxInput("showIN",
                               label="Show isolated nodes",
-                              value=TRUE)),
+                              value=FALSE)),
 
               # Additional options for second order connections
               conditionalPanel(
@@ -255,7 +264,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
 
             # View the network
             mainPanel(id="mainpanel",width="8",
-              tags$div(id="cyto",cytoscapeOutput("network", height='600px')),
+              visNetworkOutput("network", height="800px"),
               HTML('<hr>'),
               plotlyOutput('depBoxPlot'),
               HTML('<hr>'),
@@ -487,6 +496,9 @@ server <- function(input, output, session) {
   codep_network <- eventReactive(input$buildNetwork,
                                  ignoreNULL=FALSE,{
 
+         # load genetic dependency data
+         if (is.null(achilles)){readAchilles(session, achilles)}
+
           # show tabset panel for output
           if (networkTabsLoaded==TRUE){
             removeTab(inputId="networkTabs", target="Nodes")
@@ -565,10 +577,51 @@ server <- function(input, output, session) {
          network
        })
 
-  # visualize network using cytoscape.js library
-  output$network <- renderCytoscape({
+  # visualize network using vizNetwork
+  output$network <- renderVisNetwork({
 
-  cytoscape(nodes = codep_network()[[1]], edges = codep_network()[[2]]) %>%
+    # get network
+    nodes <- codep_network()[[1]]
+    edges <- codep_network()[[2]]
+
+    print(nodes%>%head)
+    print(edges%>%head)
+
+    # create 'label' column
+    nodes[,'label'] <- nodes[,'gene']
+
+    # create id > gene map.
+    nodes[,"id"] <- c(1:nrow(nodes))
+    id2geneMap <- nodes[,"id"] %>% unlist
+    names(id2geneMap) <- nodes[,"gene"]
+
+    # use map to make 'from'/'to' columns
+    from <- id2geneMap[edges[,'source'] %>% unlist]
+    to <- id2geneMap[edges[,'target'] %>% unlist]
+    edges <- cbind(edges, from, to)
+
+    visNetwork(nodes, edges, height="800px") %>%
+         visNodes(shape = "dot",
+                  labelHighlightBold=FALSE,
+                  font = list(vadjust=-50,
+                              size=30,
+                              strokeWidth=0.5,
+                              strokeColor='#000000')) %>%
+         visEdges(smooth=TRUE, length=10) %>%
+         visOptions(highlightNearest = list(enabled = T, degree = 1, hover = T)) %>%
+         visIgraphLayout(randomSeed = 42, smooth=TRUE)
+
+  })
+
+  # visualize network using cytoscape.js library
+  output$network2 <- renderCytoscape({
+
+  nodesCS = codep_network()[[1]]
+  print(nodesCS %>% head)
+  nodesCS[,'id'] = nodesCS[,'gene']
+  edgesCS = codep_network()[[2]]
+
+  cytoscape(nodes=nodesCS, edges=edgesCS) %>%
       cola_layout(maxSimulationTime=120000, avoidOverlap=TRUE, refresh=30, ungrabifyWhileSimulating = FALSE, fit=FALSE) %>%
       node_style(
         'text-valign'='center',
@@ -579,7 +632,7 @@ server <- function(input, output, session) {
         'font-weight'='500',
         #'text-outline-width'='0.5px',
         #'text-outline-color'='#1f3947',
-        'background-color'='data(nodeColor)'
+        'background-color'='data(color)'
 
       ) %>%
       edge_style(
@@ -592,9 +645,6 @@ server <- function(input, output, session) {
 # generate essentiality data
   output$depBoxPlot <- renderPlotly({
 
-    # load genetic dependency data
-    if (is.null(achilles)){readAchilles(session, achilles)}
-
     # get network data
     nodes <- codep_network()[[1]]
     edges <- codep_network()[[2]]
@@ -602,19 +652,18 @@ server <- function(input, output, session) {
     # reshape essentiality data for plotting
     achillesPlot <- achilles[,c("stripped_cell_line_name",
                                 "disease",
-                                nodes %>% select(id) %>% unlist)] %>%
-      gather(nodes %>% select(id) %>% unlist,
+                                nodes %>% select(gene) %>% unlist)] %>%
+      gather(nodes %>% select(gene) %>% unlist,
              key="gene", value="dependency")
 
     ## add color/name data to plot dataframe
     # create map gene --> color
-    colMap <- nodes[,"nodeColor"]
-    names(colMap) <- nodes[,"id"]
+    colMap <- nodes[,"color"]
+    names(colMap) <- nodes[,"gene"]
 
     # create color column & add to plot df
     color = colMap[achillesPlot[,'gene'] %>% unlist]
     achillesPlot <- cbind(achillesPlot, color)
-    print(achillesPlot[1:5,])
 
     # plot boxplot
     depBoxPlot <- plot_ly(achillesPlot,
@@ -657,7 +706,7 @@ server <- function(input, output, session) {
   )
 
   ### load gene names for drop down
-  updateSelectizeInput(session, "genes_selected", choices = geneNames, selected=c("C16orf72"))
+  updateSelectizeInput(session, "genes_selected", choices = geneNames, selected=c(""))
   updateSelectizeInput(session, "geneCEHM", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "genesRNA", choices = geneNames, selected=c("C16orf72"))
 
