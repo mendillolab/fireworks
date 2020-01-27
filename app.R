@@ -264,10 +264,10 @@ ui <- fluidPage(theme=shinytheme("paper"),
 
             # View the network
             mainPanel(id="mainpanel",width="8",
-              visNetworkOutput("network", height="800px"),
-              HTML('<hr>'),
-              plotlyOutput('depBoxPlot'),
-              HTML('<hr>'),
+              visNetworkOutput("network", height="600px"),
+              #HTML('<hr>'),
+              #plotlyOutput('depBoxPlot'),
+              #HTML('<hr>'),
               tabsetPanel(id="networkTabs")
            ) # main panel - pan-cancer
         ) # sidebar layout - pan-cancer
@@ -580,27 +580,30 @@ server <- function(input, output, session) {
   # visualize network using vizNetwork
   output$network <- renderVisNetwork({
 
-    # get network
-    nodes <- codep_network()[[1]]
-    edges <- codep_network()[[2]]
+    #if (exampleNetworkLoaded == FALSE){
+      # load example network
+      # nodes <-
+      # edges <-
+      # exampleNetworkLoaded <<- TRUE
+    #} else {
+      # get network
+      nodes <- codep_network()[[1]]
+      edges <- codep_network()[[2]]
+    #}
+      # create 'label' column
+      nodes[,'label'] <- nodes[,'gene']
 
-    print(nodes%>%head)
-    print(edges%>%head)
+      # create id > gene map.
+      nodes[,"id"] <- c(1:nrow(nodes))
+      id2geneMap <- nodes[,"id"] %>% unlist
+      names(id2geneMap) <- nodes[,"gene"]
 
-    # create 'label' column
-    nodes[,'label'] <- nodes[,'gene']
+      # use map to make 'from'/'to' columns
+      from <- id2geneMap[edges[,'source'] %>% unlist]
+      to <- id2geneMap[edges[,'target'] %>% unlist]
+      edges <- cbind(edges, from, to)
 
-    # create id > gene map.
-    nodes[,"id"] <- c(1:nrow(nodes))
-    id2geneMap <- nodes[,"id"] %>% unlist
-    names(id2geneMap) <- nodes[,"gene"]
-
-    # use map to make 'from'/'to' columns
-    from <- id2geneMap[edges[,'source'] %>% unlist]
-    to <- id2geneMap[edges[,'target'] %>% unlist]
-    edges <- cbind(edges, from, to)
-
-    visNetwork(nodes, edges, height="800px") %>%
+    visNetwork(nodes, edges, height="600px") %>%
          visNodes(shape = "dot",
                   labelHighlightBold=FALSE,
                   font = list(vadjust=-50,
@@ -643,39 +646,39 @@ server <- function(input, output, session) {
   }) # output$network
 
 # generate essentiality data
-  output$depBoxPlot <- renderPlotly({
-
-    # get network data
-    nodes <- codep_network()[[1]]
-    edges <- codep_network()[[2]]
-
-    # reshape essentiality data for plotting
-    achillesPlot <- achilles[,c("stripped_cell_line_name",
-                                "disease",
-                                nodes %>% select(gene) %>% unlist)] %>%
-      gather(nodes %>% select(gene) %>% unlist,
-             key="gene", value="dependency")
-
-    ## add color/name data to plot dataframe
-    # create map gene --> color
-    colMap <- nodes[,"color"]
-    names(colMap) <- nodes[,"gene"]
-
-    # create color column & add to plot df
-    color = colMap[achillesPlot[,'gene'] %>% unlist]
-    achillesPlot <- cbind(achillesPlot, color)
-
-    # plot boxplot
-    depBoxPlot <- plot_ly(achillesPlot,
-                          x = ~gene,
-                          y = ~dependency,
-                          color = ~color,
-                          type = 'box',
-                          text = ~paste(stripped_cell_line_name,
-                                        '<br>Disease:', disease),
-                          hoverinfo="text") %>%
-                  plotly::layout(title = "Essentiality of genes in network")
-  })
+  # output$depBoxPlot <- renderPlotly({
+  #
+  #   # get network data
+  #   nodes <- codep_network()[[1]]
+  #   edges <- codep_network()[[2]]
+  #
+  #   # reshape essentiality data for plotting
+  #   achillesPlot <- achilles[,c("stripped_cell_line_name",
+  #                               "disease",
+  #                               nodes %>% select(gene) %>% unlist)] %>%
+  #     gather(nodes %>% select(gene) %>% unlist,
+  #            key="gene", value="dependency")
+  #
+  #   ## add color/name data to plot dataframe
+  #   # create map gene --> color
+  #   colMap <- nodes[,"color"]
+  #   names(colMap) <- nodes[,"gene"]
+  #
+  #   # create color column & add to plot df
+  #   color = colMap[achillesPlot[,'gene'] %>% unlist]
+  #   achillesPlot <- cbind(achillesPlot, color)
+  #
+  #   # plot boxplot
+  #   depBoxPlot <- plot_ly(achillesPlot,
+  #                         x = ~gene,
+  #                         y = ~dependency,
+  #                         color = ~color,
+  #                         type = 'box',
+  #                         text = ~paste(stripped_cell_line_name,
+  #                                       '<br>Disease:', disease),
+  #                         hoverinfo="text") %>%
+  #                 plotly::layout(title = "Essentiality of genes in network")
+  # })
 
   output$nodesTable <- renderDataTable({
     datatable(codep_network()[[1]],
@@ -706,7 +709,7 @@ server <- function(input, output, session) {
   )
 
   ### load gene names for drop down
-  updateSelectizeInput(session, "genes_selected", choices = geneNames, selected=c(""))
+  updateSelectizeInput(session, "genes_selected", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "geneCEHM", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "genesRNA", choices = geneNames, selected=c("C16orf72"))
 
