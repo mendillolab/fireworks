@@ -179,7 +179,7 @@ removeIPN <- function(nodes, edges, source_genes, color) {
 buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
                          k2=0, pos1=TRUE, neg1=TRUE, secondOrder=FALSE,
                          pos2=TRUE, neg2=FALSE,
-                         showIPN=TRUE, showISN=TRUE) {
+                         showIPN=TRUE, showISN=TRUE, exampleNetwork=FALSE) {
   #' @corrMat(df): melted correlation matrix (row, column, cor, p)
   #' @gene(chr): list of codependent genes, chr
   #' @k1(int): rank cutoff for primary connection
@@ -193,71 +193,83 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
   #' @showISN(boolean): show isolated secondary nodes
 
 
-  # initialize network
-  nodes <- data.frame(gene=sourceGenes) %>% mutate_all(as.character)
-  edges <- data.frame(source=sourceGenes,
-                      target=sourceGenes,
-                      color=rep("#", length(sourceGenes))) %>% mutate_all(as.character)
+  if (exampleNetwork == TRUE){
+    # load example network
+    nodes <- read_csv("data/C16orf72.30.nodes.csv")
+    edges <- read_csv("data/C16orf72.30.edges.csv")
+  } else {
+      # initialize network
+      nodes <- data.frame(gene=sourceGenes) %>% mutate_all(as.character)
+      edges <- data.frame(source=sourceGenes,
+                          target=sourceGenes,
+                          color=rep("#", length(sourceGenes))) %>% mutate_all(as.character)
 
-  # fill out network for each source gene
-  withProgress(message = "Adding primary connections for: ", value=0,{
-  n <- length(sourceGenes)
-  for (gene in sourceGenes){
+      # fill out network for each source gene
+      withProgress(message = "Adding primary connections for: ", value=0,{
+      n <- length(sourceGenes)
+      for (gene in sourceGenes){
 
-    # update progress bar
-    incProgress(1/n, detail = paste(gene))
+        # update progress bar
+        incProgress(1/n, detail = paste(gene))
 
-    # find top co-essential genes (codeps)
-    gene.corrMat <- corrMat %>% filter(gene1 == gene | gene2 == gene)
-    codeps <- getCodeps(corrmat=gene.corrMat, gene=gene, pos=pos1, neg=neg1, k=k1)
-    network.new <- updateNetwork(nodes, edges, codeps, gene)
-    nodes <- network.new[[1]]
-    edges <- network.new[[2]]
+        # find top co-essential genes (codeps)
+        gene.corrMat <- corrMat %>% filter(gene1 == gene | gene2 == gene)
+        codeps <- getCodeps(corrmat=gene.corrMat, gene=gene, pos=pos1, neg=neg1, k=k1)
+        network.new <- updateNetwork(nodes, edges, codeps, gene)
+        nodes <- network.new[[1]]
+        edges <- network.new[[2]]
 
-  } # for (gene in sourceGenes)
-}) # withProgress
-  edges <- edges %>% filter(source != target)
-  nodes <- nodes %>% mutate(
-    type = ifelse(gene %in% sourceGenes, "source", "primary"),
-    color = ifelse(gene %in% sourceGenes, "#f7895e", "#d6c5fc"))
+      } # for (gene in sourceGenes)
+    }) # withProgress
+      edges <- edges %>% filter(source != target)
+      nodes <- nodes %>% mutate(
+        type = ifelse(gene %in% sourceGenes, "source", "primary"),
+        color = ifelse(gene %in% sourceGenes, "#ffbf8f", "#e6dcfc"))
 
-  # find secondary pools
-  if (secondOrder){
-    primaryGenes = edges[,'target'] %>% unique
-    primaryGenes = primaryGenes[!(primaryGenes %in% sourceGenes)]
-    edgesPerGene = nrow(edges) / length(sourceGenes)
+      # find secondary pools
+      if (secondOrder){
+        primaryGenes = edges[,'target'] %>% unique
+        primaryGenes = primaryGenes[!(primaryGenes %in% sourceGenes)]
+        edgesPerGene = nrow(edges) / length(sourceGenes)
 
-    withProgress(message = "Adding second order connections for: ", value=0,{
+        withProgress(message = "Adding second order connections for: ", value=0,{
 
-    n <- length(primaryGenes)
-    progress = 0
-    sourceIndex = 1
-    for (codep in primaryGenes){
+        n <- length(primaryGenes)
+        progress = 0
+        sourceIndex = 1
+        for (codep in primaryGenes){
 
-    # update progress
-    progress = progress + 1
-    incProgress(1/n, detail = paste(sourceGenes[sourceIndex], ">", codep))
-    if (progress %% edgesPerGene == 0){sourceIndex = sourceIndex + 1}
-
-
-     # find top co-essential genes (codeps)
-     gene.corrMat <- corrMat %>% filter(gene1 == codep | gene2 == codep)
-     codeps <- getCodeps(corrmat=gene.corrMat, gene=codep, pos=pos2, neg=neg2, k=k2)
-     network.new <- updateNetwork(nodes, edges, codeps, codep)
-     nodes <- network.new[[1]]
-     edges <- network.new[[2]]
+        # update progress
+        progress = progress + 1
+        incProgress(1/n, detail = paste(sourceGenes[sourceIndex], ">", codep))
+        if (progress %% edgesPerGene == 0){sourceIndex = sourceIndex + 1}
 
 
-   }}) # for (gene in primaryGenes) / }) end w/ progress
-  } # if (secondOrder)
+         # find top co-essential genes (codeps)
+         gene.corrMat <- corrMat %>% filter(gene1 == codep | gene2 == codep)
+         codeps <- getCodeps(corrmat=gene.corrMat, gene=codep, pos=pos2, neg=neg2, k=k2)
+         network.new <- updateNetwork(nodes, edges, codeps, codep)
+         nodes <- network.new[[1]]
+         edges <- network.new[[2]]
 
-  # trim isolated nodes as indicated by showISN, showIPN
-  network <- list(nodes, edges)
-  if (!(showISN)){network <- removeISN(network[[1]], network[[2]], sourceGenes)}
-  if (!(showIPN)){network <- removeIPN(network[[1]], network[[2]], sourceGenes)}
 
-  # return network
-  return(network)
+       }}) # for (gene in primaryGenes) / }) end w/ progress
+      } # if (secondOrder)
+
+      # trim isolated nodes as indicated by showISN, showIPN
+      network <- list(nodes, edges)
+      if (!(showISN)){network <- removeISN(network[[1]], network[[2]], sourceGenes)}
+      if (!(showIPN)){network <- removeIPN(network[[1]], network[[2]], sourceGenes)}
+
+      # return network
+      return(network)
+
+
+    } # else: end network build
+
+    # RETURN STATEMENT FOR DEFAULT LOADED NETWORK
+    network <- list(nodes, edges)
+    return(network)
 
 } # buildNetwork_local
 
@@ -292,7 +304,7 @@ buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
   }) # withProgress
 
   edges <- edges %>% filter(source != target)
-  nodes <- nodes %>% mutate(color = ifelse(gene %in% sourceGenes, "#f7895e", "#d6c5fc"))
+  nodes <- nodes %>% mutate(color = ifelse(gene %in% sourceGenes, "#ffbf8f", "#e6dcfc"))
 
   # find secondary connections
   if (secondOrder){

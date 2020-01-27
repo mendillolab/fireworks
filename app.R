@@ -50,6 +50,7 @@ ccleExpr <- NULL
 plotRecord <- NULL
 
 # boolean flags to check if tab 'pages' are loaded
+exampleNetwork <<- TRUE
 CEHM.page.loaded <- FALSE
 RNA.page.loaded <- FALSE
 networkTabsLoaded <- FALSE
@@ -167,13 +168,13 @@ ui <- fluidPage(theme=shinytheme("paper"),
                           choices = c("C16orf72"),
                           selected = c("C16orf72"),
                           # choices = c("EIF2AK1","EIF2AK2","EIF2AK3","EIF2AK4","TP53",
-                          #             "ATM","HSF1","HSF2","ATF5","ERN1","XBP1","EIF2AK3",
-                          #             "ATF6","HIF1A","ARNT","EPAS1","HIF3A","ATF3","EIF2AK2",
-                          #             "ATF4","ATG7","ATG5","KEAP1","NFE2L2"),
-                          # selected = c("EIF2AK1","EIF2AK2","EIF2AK3","EIF2AK4","TP53",
-                          #             "ATM","HSF1","HSF2","ATF5","ERN1","XBP1","EIF2AK3",
-                          #             "ATF6","HIF1A","ARNT","EPAS1","HIF3A","ATF3","EIF2AK2",
-                          #             "ATF4","ATG7","ATG5","KEAP1","NFE2L2"),
+                          #              "ATM","HSF1","HSF2","ATF5","ERN1","XBP1","EIF2AK3",
+                          #              "ATF6","HIF1A","ARNT","EPAS1","HIF3A","ATF3","EIF2AK2",
+                          #              "ATF4","ATG7","ATG5","KEAP1","NFE2L2"),
+                          #  selected = c("EIF2AK1","EIF2AK2","EIF2AK3","EIF2AK4","TP53",
+                          #              "ATM","HSF1","HSF2","ATF5","ERN1","XBP1","EIF2AK3",
+                          #              "ATF6","HIF1A","ARNT","EPAS1","HIF3A","ATF3","EIF2AK2",
+                          #              "ATF4","ATG7","ATG5","KEAP1","NFE2L2"),
                           multiple = TRUE),
 
               # Context input
@@ -553,10 +554,14 @@ server <- function(input, output, session) {
             if (secondOrder) {
               network <- buildNetwork_local(corrMat=panCorrMat, sourceGenes=sourceGenes, k1=k1, k2=k2,
                                       pos1=pos1, neg1=neg1, pos2=pos2, neg2=neg2,
-                                      showIPN=showIPN, showISN=showISN, secondOrder=TRUE)
+                                      showIPN=showIPN, showISN=showISN, secondOrder=TRUE,
+                                      exampleNetwork=exampleNetwork)
+              exampleNetwork <<- FALSE
             } else {
               network <- buildNetwork_local(corrMat=panCorrMat, sourceGenes=sourceGenes, k1=k1,
-                                      pos1=pos1, neg1=neg1, showIPN=showIPN, secondOrder=FALSE)
+                                      pos1=pos1, neg1=neg1, showIPN=showIPN, secondOrder=FALSE,
+                                      exampleNetwork=exampleNetwork)
+              exampleNetwork <<- FALSE
             }
           }
 
@@ -580,23 +585,20 @@ server <- function(input, output, session) {
   # visualize network using vizNetwork
   output$network <- renderVisNetwork({
 
-    #if (exampleNetworkLoaded == FALSE){
-      # load example network
-      # nodes <-
-      # edges <-
-      # exampleNetworkLoaded <<- TRUE
-    #} else {
       # get network
       nodes <- codep_network()[[1]]
       edges <- codep_network()[[2]]
-    #}
+
       # create 'label' column
       nodes[,'label'] <- nodes[,'gene']
+
+      # create group column
+      nodes[,'group'] <- nodes[,'type']
 
       # create id > gene map.
       nodes[,"id"] <- c(1:nrow(nodes))
       id2geneMap <- nodes[,"id"] %>% unlist
-      names(id2geneMap) <- nodes[,"gene"]
+      names(id2geneMap) <- nodes[,"gene"] %>% unlist
 
       # use map to make 'from'/'to' columns
       from <- id2geneMap[edges[,'source'] %>% unlist]
@@ -610,40 +612,13 @@ server <- function(input, output, session) {
                               size=30,
                               strokeWidth=0.5,
                               strokeColor='#000000')) %>%
+         visGroups(groupname = "source", size=45, font=list(size=45,vadjust=-85)) %>%
          visEdges(smooth=TRUE, length=10) %>%
+         visInteraction(keyboard = TRUE) %>%
          visOptions(highlightNearest = list(enabled = T, degree = 1, hover = T)) %>%
          visIgraphLayout(randomSeed = 42, smooth=TRUE)
 
   })
-
-  # visualize network using cytoscape.js library
-  output$network2 <- renderCytoscape({
-
-  nodesCS = codep_network()[[1]]
-  print(nodesCS %>% head)
-  nodesCS[,'id'] = nodesCS[,'gene']
-  edgesCS = codep_network()[[2]]
-
-  cytoscape(nodes=nodesCS, edges=edgesCS) %>%
-      cola_layout(maxSimulationTime=120000, avoidOverlap=TRUE, refresh=30, ungrabifyWhileSimulating = FALSE, fit=FALSE) %>%
-      node_style(
-        'text-valign'='center',
-        'text-halign'='center',
-        'color'='#1f3947',
-        'transition-timing-function'='spring',
-        'font-size'='22px',
-        'font-weight'='500',
-        #'text-outline-width'='0.5px',
-        #'text-outline-color'='#1f3947',
-        'background-color'='data(color)'
-
-      ) %>%
-      edge_style(
-        'line-color'='data(color)',
-        'width'='2'
-      ) %>%
-      panzoom()
-  }) # output$network
 
 # generate essentiality data
   # output$depBoxPlot <- renderPlotly({
@@ -681,13 +656,15 @@ server <- function(input, output, session) {
   # })
 
   output$nodesTable <- renderDataTable({
-    datatable(codep_network()[[1]],
+    nodes <- codep_network()[[1]] %>% select(-color)
+    datatable(nodes,
               options = list(pageLength=10, lengthChange=FALSE),
               rownames=FALSE)
   })
 
   output$edgesTable <- renderDataTable({
-    datatable(codep_network()[[2]],
+    edges <- codep_network()[[2]] %>% select(-color)
+    datatable(edges,
               options = list(pageLength=15, lengthChange=FALSE),
               rownames=FALSE)
   })
