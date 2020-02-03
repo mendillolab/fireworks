@@ -179,6 +179,7 @@ removeIPN <- function(nodes, edges, source_genes, color) {
 getGeneInfo <- function(nodes, edges, geneinfo, achilles, context="pan_cancer") {
 
   #### merge nodes df with gene annotation dataframe
+  geneinfo <- geneinfo %>% mutate_all(as.character)
   nodes <- merge(nodes, geneinfo, by="gene")
 
   #### merge nodes df with dependency data
@@ -392,7 +393,7 @@ buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
 
   # add gene annotation data
   network <- getGeneInfo(network[[1]], network[[2]], geneinfo, achilles)
-
+  #print(network[[1]][1,"aliases"] %>% class)
   # return network
   return(network)
 

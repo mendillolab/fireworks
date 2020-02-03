@@ -630,8 +630,8 @@ server <- function(input, output, session) {
       #                   mutate(title=flatten(title))
 
       nodes <- nodes %>% mutate(title=paste0("<p><b><a href='https://www.ncbi.nlm.nih.gov/gene/",id,"\' target='_blank'>",gene,"</a></b><br />",
-                                              aliases,"<br />",
-                                              #ifelse( ( (aliases %>% is.na) | (nchar(aliases)==0) ),"",paste0(aliases,"<br />") ),
+                                              #aliases,"<br />",
+                                              ifelse( ((aliases %>% is.na) | (nchar(aliases)==0)),"",paste0(aliases,"<br />") ),
                                               "<i>",name,"</i><br />",
                                               "<b>Dependency:</b><br />",
                                               "<b>Min: </b>",round(min,2)," <b>Median: </b>",round(median,2)," <b>Max: </b>",round(max,2),"<br />",
