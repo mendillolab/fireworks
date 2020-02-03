@@ -21,6 +21,7 @@ library(shinyWidgets)
 library(dplyr)
 library(tidyr)
 library(visNetwork)
+library(stringi)
 source("R/network.R")
 source("R/coessentialHeatmap.R")
 source("R/differentialExpression.R")
@@ -42,12 +43,14 @@ onStop(function() {
 
 ############## pre-load data & variables #########################
 geneNames <- strsplit(read_lines("data/gene_names.txt"),",") %>% unlist %>% as.data.table
+colnames(geneNames) <- "Gene:"
 
 # boolean flags to check if dataset(s) have been loaded
 panCorrMat <- NULL
 achilles <- NULL
 ccleExpr <- NULL
 plotRecord <- NULL
+geneinfo <- NULL
 
 # boolean flags to check if tab 'pages' are loaded
 exampleNetwork <<- TRUE
@@ -65,7 +68,7 @@ RNAtabsLoaded <- FALSE
 
 readCorrMat <- function(session, panCorrMat) {
   progress <- Progress$new(session)
-  progress$set(value = 0.5, message = 'Loading pan-cancer correlation matrix...')
+  progress$set(value = 0.5, message = 'Loading correlation matrix...')
   panCorrMat <<- read_feather("data/panCancer.corr.feather")
   progress$set(value = 1, message = 'Loading...')
   progress$close()
@@ -76,6 +79,14 @@ readAchilles <- function(session, achilles) {
   progress$set(value = 0.5, message = 'Loading genetic dependency data...')
   achilles <<- read_feather("data/achilles.feather")
   progress$set(value = 1, message = 'Loading...')
+  progress$close()
+}
+
+readGeneInfo <- function(session, geneinfo) {
+  progress <- Progress$new(session)
+  progress$set(value=0.5, message = 'Loading gene annotation data...')
+  geneinfo <<- read_feather("data/geneinfo.all.feather")
+  progress$set(value = 1, message = 'Loading..')
   progress$close()
 }
 
@@ -141,7 +152,18 @@ label{font-size:12px;}
   background-color: red;
 }'
 "
+############## convenience functions #########################
+splitLines <- function(line){
+    line <- paste0(stri_extract_all_regex(line, '.{1,20}')[[1]], collapse="<br />")
+    return(line)
+}
 
+flatten <- function(title){
+  title <- stringr::str_split(string=title, pattern="<br />" %>% unlist)
+  title <- lapply(title, splitLines)
+  title <- unlist(new_title) %>% paste0(collapse="<br />")
+  return(title)
+}
 
 ############# User interface #########################
 ui <- fluidPage(theme=shinytheme("paper"),
@@ -264,7 +286,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
             ),
 
             # View the network
-            mainPanel(id="mainpanel",width="8",
+            mainPanel(id="mainpanel",width="8",style="z-index:500",
               visNetworkOutput("network", height="600px"),
               #HTML('<hr>'),
               #plotlyOutput('depBoxPlot'),
@@ -500,6 +522,9 @@ server <- function(input, output, session) {
          # load genetic dependency data
          if (is.null(achilles)){readAchilles(session, achilles)}
 
+         # load gene annotation data
+         if (is.null(geneinfo)){readGeneInfo(session, geneinfo)}
+
           # show tabset panel for output
           if (networkTabsLoaded==TRUE){
             removeTab(inputId="networkTabs", target="Nodes")
@@ -555,12 +580,12 @@ server <- function(input, output, session) {
               network <- buildNetwork_local(corrMat=panCorrMat, sourceGenes=sourceGenes, k1=k1, k2=k2,
                                       pos1=pos1, neg1=neg1, pos2=pos2, neg2=neg2,
                                       showIPN=showIPN, showISN=showISN, secondOrder=TRUE,
-                                      exampleNetwork=exampleNetwork)
+                                      exampleNetwork=exampleNetwork, geneinfo=geneinfo, achilles=achilles)
               exampleNetwork <<- FALSE
             } else {
               network <- buildNetwork_local(corrMat=panCorrMat, sourceGenes=sourceGenes, k1=k1,
                                       pos1=pos1, neg1=neg1, showIPN=showIPN, secondOrder=FALSE,
-                                      exampleNetwork=exampleNetwork)
+                                      exampleNetwork=exampleNetwork, geneinfo=geneinfo, achilles=achilles)
               exampleNetwork <<- FALSE
             }
           }
@@ -571,10 +596,12 @@ server <- function(input, output, session) {
             if (secondOrder) {
               network <- buildNetworkSQL2(table=getLineageName(context), pool=pool, sourceGenes=sourceGenes, k1=k1, k2=k2,
                                       pos1=pos1, neg1=neg1, pos2=pos2, neg2=neg2,
-                                      showIPN=showIPN, showISN=showISN, secondOrder=TRUE)
+                                      showIPN=showIPN, showISN=showISN, secondOrder=TRUE,
+                                      geneinfo=geneinfo, achilles=achilles)
             } else {
               network <- buildNetworkSQL2(table=getLineageName(context), pool=pool, sourceGenes=sourceGenes, k1=k1,
-                                      pos1=pos1, neg1=neg1, showIPN=showIPN, secondOrder=FALSE)
+                                      pos1=pos1, neg1=neg1, showIPN=showIPN, secondOrder=FALSE,
+                                      geneinfo=geneinfo, achilles=achilles)
             }
           }
 
@@ -595,6 +622,21 @@ server <- function(input, output, session) {
       # create group column
       nodes[,'group'] <- nodes[,'type']
 
+      # create title column
+      # nodes <- nodes %>% mutate(title=paste0(gene,"<br />",
+      #                           name,"<br />",
+      #                           "Median:0.3; Q25:0.2; Q75:0.75<br />",
+      #                           "Aliases: ",aliases)) %>%
+      #                   mutate(title=flatten(title))
+
+      nodes <- nodes %>% mutate(title=paste0("<p><b><a href='https://www.ncbi.nlm.nih.gov/gene/",id,"\' target='_blank'>",gene,"</a></b><br />",
+                                              #,aliases,"<br />",
+                                              ifelse( ( (aliases %>% is.na) | (nchar(aliases)==0) ),"",paste0(aliases,"<br />") ),
+                                              "<i>",name,"</i><br />",
+                                              "<b>Dependency:</b><br />",
+                                              "<b>Min: </b>",round(min,2)," <b>Median: </b>",round(median,2)," <b>Max: </b>",round(max,2),"<br />",
+                                              "<b>Q25: </b>",round(Q25,2)," <b>Q75: </b>",round(Q75,2),"<br />"
+                                              ))
       # create id > gene map.
       nodes[,"id"] <- c(1:nrow(nodes))
       id2geneMap <- nodes[,"id"] %>% unlist
@@ -614,49 +656,50 @@ server <- function(input, output, session) {
                               strokeColor='#000000')) %>%
          visGroups(groupname = "source", size=45, font=list(size=45,vadjust=-85)) %>%
          visEdges(smooth=TRUE, length=10) %>%
-         visInteraction(keyboard = TRUE) %>%
+         visInteraction(keyboard = TRUE,
+                        tooltipDelay=800) %>%
          visOptions(highlightNearest = list(enabled = T, degree = 1, hover = T)) %>%
-         visIgraphLayout(randomSeed = 42, smooth=TRUE)
+         visIgraphLayout(randomSeed = , smooth=TRUE)
 
   })
 
 # generate essentiality data
-  # output$depBoxPlot <- renderPlotly({
-  #
-  #   # get network data
-  #   nodes <- codep_network()[[1]]
-  #   edges <- codep_network()[[2]]
-  #
-  #   # reshape essentiality data for plotting
-  #   achillesPlot <- achilles[,c("stripped_cell_line_name",
-  #                               "disease",
-  #                               nodes %>% select(gene) %>% unlist)] %>%
-  #     gather(nodes %>% select(gene) %>% unlist,
-  #            key="gene", value="dependency")
-  #
-  #   ## add color/name data to plot dataframe
-  #   # create map gene --> color
-  #   colMap <- nodes[,"color"]
-  #   names(colMap) <- nodes[,"gene"]
-  #
-  #   # create color column & add to plot df
-  #   color = colMap[achillesPlot[,'gene'] %>% unlist]
-  #   achillesPlot <- cbind(achillesPlot, color)
-  #
-  #   # plot boxplot
-  #   depBoxPlot <- plot_ly(achillesPlot,
-  #                         x = ~gene,
-  #                         y = ~dependency,
-  #                         color = ~color,
-  #                         type = 'box',
-  #                         text = ~paste(stripped_cell_line_name,
-  #                                       '<br>Disease:', disease),
-  #                         hoverinfo="text") %>%
-  #                 plotly::layout(title = "Essentiality of genes in network")
-  # })
+#   output$depBoxPlot <- renderPlotly({
+#
+#     # get network data
+#     nodes <- codep_network()[[1]]
+#     edges <- codep_network()[[2]]
+#
+#     # reshape essentiality data for plotting
+#     achillesPlot <- achilles[,c("stripped_cell_line_name",
+#                                 "disease",
+#                                 nodes %>% select(gene) %>% unlist)] %>%
+#       gather(nodes %>% select(gene) %>% unlist,
+#              key="gene", value="dependency")
+#
+#     ## add color/name data to plot dataframe
+#     # create map gene --> color
+#     colMap <- nodes[,"color"]
+#     names(colMap) <- nodes[,"gene"]
+#
+#     # create color column & add to plot df
+#     color = colMap[achillesPlot[,'gene'] %>% unlist]
+#     achillesPlot <- cbind(achillesPlot, color)
+#
+#     # plot boxplot
+#     depBoxPlot <- plot_ly(achillesPlot,
+#                           x = ~gene,
+#                           y = ~dependency,
+#                           color = ~color,
+#                           type = 'box',
+#                           text = ~paste(stripped_cell_line_name,
+#                                         '<br>Disease:', disease),
+#                           hoverinfo="text") %>%
+#                   plotly::layout(title = "Essentiality of genes in network")
+#   })
 
   output$nodesTable <- renderDataTable({
-    nodes <- codep_network()[[1]] %>% select(-color)
+    nodes <- codep_network()[[1]][,c("gene","type","name","median","min","max")]
     datatable(nodes,
               options = list(pageLength=10, lengthChange=FALSE),
               rownames=FALSE)

@@ -8,6 +8,7 @@
 # require(RPostgreSQL)
 # require(dbConnection)
 # require(DPLYR)
+# require(JSONlite)
 
 getLineageName <- function(choice){
 
@@ -175,11 +176,48 @@ removeIPN <- function(nodes, edges, source_genes, color) {
   return(network)
 }
 
+getGeneInfo <- function(nodes, edges, geneinfo, achilles, context="pan_cancer") {
+
+  #### merge nodes df with gene annotation dataframe
+  nodes <- merge(nodes, geneinfo, by="gene")
+
+  #### merge nodes df with dependency data
+  genes <- nodes[,"gene"] %>% unlist
+  if (context != "pan_cancer") {
+    # TODO: test this!
+    achilles.nodes <- achilles %>% filter(lineage==context)
+    achilles.nodes <- achilles.nodes[,genes]
+  } else { achilles.nodes <- achilles[,genes] }
+
+  ## flip signs on achilles dataframe (more positive = more essential)
+  achilles.nodes <- achilles.nodes*(-1)
+
+  # grab median, min, max, and 25th/75th quartiles
+  medianApply <- function(x){return(median(x, na.rm=TRUE))}
+  minApply <- function(x){return(min(x, na.rm=TRUE))}
+  maxApply <- function(x){return(max(x, na.rm=TRUE))}
+  quantile25 <- function(x){return(quantile(x,probs=0.25, na.rm=TRUE))}
+  quantile75 <- function(x){return(quantile(x,probs=0.75, na.rm=TRUE))}
+  nodes.withAchilles <- data.frame(gene=genes,
+                              median=apply(achilles.nodes, 2, medianApply),
+                              min=apply(achilles.nodes,2,minApply),
+                              max=apply(achilles.nodes,2,maxApply),
+                              Q25=apply(achilles.nodes,2,quantile25),
+                              Q75=apply(achilles.nodes,2,quantile75))
+
+  # merge with other nodes w/ nodes.withAchilles
+  nodes <- merge(nodes, nodes.withAchilles, by="gene")
+
+  return(list(nodes, edges))
+}
+
+
 # (IN PROGRESS) build a network using pre-loaded correlation matrix (for pan-cancer analyses)
 buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
                          k2=0, pos1=TRUE, neg1=TRUE, secondOrder=FALSE,
                          pos2=TRUE, neg2=FALSE,
-                         showIPN=TRUE, showISN=TRUE, exampleNetwork=FALSE) {
+                         showIPN=TRUE, showISN=TRUE, exampleNetwork=FALSE,
+                         geneinfo, achilles) {
   #' @corrMat(df): melted correlation matrix (row, column, cor, p)
   #' @gene(chr): list of codependent genes, chr
   #' @k1(int): rank cutoff for primary connection
@@ -191,11 +229,18 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
   #' @secondOrder(boolean): include second order connections
   #' @showIPN(boolean): show isolated primary nodes
   #' @showISN(boolean): show isolated secondary nodes
+  #' @geneinfo(df): gene annotation data
+  #' @achilles(df): gene dependency data
 
 
-  if (exampleNetwork == TRUE){
+  if ((sourceGenes == c("C16orf72")) &
+      (pos1==TRUE) & (neg1==TRUE) &
+      (pos2==TRUE) & (neg2==FALSE) &
+      (secondOrder==TRUE) &
+      (k1==30) & (k2==5) &
+      (showIPN==FALSE) & (showISN==FALSE)){
     # load example network
-    nodes <- read_csv("data/C16orf72.30.nodes.csv")
+    nodes <- read_csv("data/C16orf72.30.nodes.csv") #nodes2
     edges <- read_csv("data/C16orf72.30.edges.csv")
   } else {
       # initialize network
@@ -261,6 +306,9 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
       if (!(showISN)){network <- removeISN(network[[1]], network[[2]], sourceGenes)}
       if (!(showIPN)){network <- removeIPN(network[[1]], network[[2]], sourceGenes)}
 
+      # add gene annotation data
+      network <- getGeneInfo(network[[1]], network[[2]], geneinfo, achilles)
+
       # return network
       return(network)
 
@@ -277,7 +325,8 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
 buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
                          k2=0, pos1=TRUE, neg1=TRUE, secondOrder=FALSE,
                          pos2=TRUE, neg2=FALSE,
-                         showIPN=TRUE, showISN=TRUE) {
+                         showIPN=TRUE, showISN=TRUE,
+                         geneinfo, achilles) {
 
   # initialize network with temporary node/edge (removed after the loop)
   nodes <- data.frame(gene=sourceGenes) %>% mutate_all(as.character)
@@ -304,7 +353,9 @@ buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
   }) # withProgress
 
   edges <- edges %>% filter(source != target)
-  nodes <- nodes %>% mutate(color = ifelse(gene %in% sourceGenes, "#ffbf8f", "#e6dcfc"))
+  nodes <- nodes %>% mutate(
+    type = ifelse(gene %in% sourceGenes, "source", "primary"),
+    color = ifelse(gene %in% sourceGenes, "#ffbf8f", "#e6dcfc"))
 
   # find secondary connections
   if (secondOrder){
@@ -338,6 +389,9 @@ buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
   network <- list(nodes, edges)
   if (!(showISN)){network <- removeISN(network[[1]], network[[2]], sourceGenes)}
   if (!(showIPN)){network <- removeIPN(network[[1]], network[[2]], sourceGenes)}
+
+  # add gene annotation data
+  network <- getGeneInfo(network[[1]], network[[2]], geneinfo, achilles)
 
   # return network
   return(network)
