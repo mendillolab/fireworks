@@ -22,6 +22,7 @@ library(dplyr)
 library(tidyr)
 library(visNetwork)
 library(stringi)
+library(scales)
 source("R/network.R")
 source("R/coessentialHeatmap.R")
 source("R/differentialExpression.R")
@@ -147,6 +148,14 @@ label{font-size:12px;}
 
 #corrType{width=100%}
 
+#network_svg_canvas {
+  width: 800px;
+  height: 600px;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+
+}
 
 .progress-bar {
   background-color: red;
@@ -170,7 +179,10 @@ ui <- fluidPage(theme=shinytheme("paper"),
 
   # top navbar
   tags$head(includeHTML("www/ga.html")),
+  includeScript("www/canvas2svg.js"),
+  includeScript("www/script.js"),
   inlineCSS(appCSS),
+  HTML('<div id="network_svg_canvas"></div>'),
       navbarPage(id="navbar",
 
         # add fireworks logo to navbar (TODO: change logo?)
@@ -543,8 +555,10 @@ server <- function(input, output, session) {
             appendTab(inputId="networkTabs", tab=tabPanel("Download",
                                                           HTML('<br />'),
                                                           selectInput("chooseDatasetNetwork", "Choose a dataset:",
-                                                          choices = c("nodes", "edges"), selected="edges"),
+                                                          choices = c("nodes(.csv)", "edges(.csv)"), selected="image(.svg)"),
                                                           downloadButton("downloadNetwork", "Download"),
+                                                          actionButton("downloadVectorImage", "Download Vector Image"),
+
                                                           HTML('<br /><br /><br />')))
             networkTabsLoaded <<- TRUE
           }
@@ -616,19 +630,28 @@ server <- function(input, output, session) {
       nodes <- codep_network()[[1]]
       edges <- codep_network()[[2]]
 
-      # create 'label' column
+      # create 'width' column (for edges)
+      sourceNodes <- nodes %>% filter(type=="source") %>% select(gene) %>% unlist
+      primaryEdges <- edges %>% filter(   source %in% sourceNodes  )
+      otherEdges  <- edges %>% filter( !(source %in% sourceNodes) )
+
+      ## edge width by correlation quantile
+      corrValues <- primaryEdges[,'correlation'] %>% unlist %>% as.double %>% abs
+      primaryEdges[,'width'] <- rescale(corrValues, to = c(0.5, 5)) %>% as.double
+      otherEdges[,'width'] <- rep(2, nrow(otherEdges))
+
+      # add dashes for secondary edges
+      primaryEdges[,'dashes'] <- rep(FALSE, nrow(primaryEdges))
+        otherEdges[,'dashes'] <- rep(TRUE,  nrow(otherEdges))
+      edges <- rbind(primaryEdges, otherEdges)
+
+      # create 'label' column (for nodes)
       nodes[,'label'] <- nodes[,'gene']
 
-      # create group column
+      # create group column (for nodes)
       nodes[,'group'] <- nodes[,'type']
 
-      # create title column
-      # nodes <- nodes %>% mutate(title=paste0(gene,"<br />",
-      #                           name,"<br />",
-      #                           "Median:0.3; Q25:0.2; Q75:0.75<br />",
-      #                           "Aliases: ",aliases)) %>%
-      #                   mutate(title=flatten(title))
-
+      # create title column (for nodes)
       nodes <- nodes %>% mutate(title=paste0("<p><b><a href='https://www.ncbi.nlm.nih.gov/gene/",id,"\' target='_blank'>",gene,"</a></b><br />",
                                               #aliases,"<br />",
                                               ifelse( ((aliases %>% is.na) | (nchar(aliases)==0)),"",paste0(aliases,"<br />") ),
@@ -659,7 +682,7 @@ server <- function(input, output, session) {
          visInteraction(keyboard = TRUE,
                         tooltipDelay=800) %>%
          visOptions(highlightNearest = list(enabled = T, degree = 1, hover = T)) %>%
-         visIgraphLayout(randomSeed = , smooth=TRUE)
+         visIgraphLayout(randomSeed = 6, smooth=TRUE, type="full")
 
   })
 
@@ -716,7 +739,9 @@ server <- function(input, output, session) {
   datasetNetwork <- reactive({
     switch(input$chooseDatasetNetwork,
            "nodes" = codep_network()[[1]],
-           "edges" = codep_network()[[2]])
+           "edges" = codep_network()[[2]]
+           #"vector" = TRUE
+          )
   })
 
   output$downloadNetwork <- downloadHandler(
@@ -733,6 +758,24 @@ server <- function(input, output, session) {
   updateSelectizeInput(session, "geneCEHM", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "genesRNA", choices = geneNames, selected=c("C16orf72"))
 
+  # svg function 1: collect network proxy data
+  observeEvent(input$downloadVectorImage,{
+      visNetworkProxy("network") %>% visGetNodes()
+      visNetworkProxy("network") %>% visGetEdges()
+  })
+
+  # svg function 2: send network data to javascript listener
+  observe({
+    input$downloadVectorImage
+    if(!is.null(input$network_nodes)){
+    # send network data
+    session$sendCustomMessage("svg_handler_nodes", input$network_nodes)
+    session$sendCustomMessage("svg_handler_edges", input$network_edges)
+    message = "Network data sent to console"
+    session$sendCustomMessage("svg_handler_update", message)
+    }
+
+  })
 
   ##################### end of server functions for co-essentiality network ###################
   ##################### beginning of server functions for co-essential heatmap ##########################
