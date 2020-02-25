@@ -7,4 +7,4 @@ An app for building gene-gene interaction networks from genome-wide fitness scre
 David R Amici, Kyle Metz, Dan Ansel, Jasen M Jackson, Marc L. Mendillo
 
 
-_Cell 2020_. https://doi.org/10.1038/s41467-019-08604-4.
+_BioRXiv 2019_. https://doi.org/10.1038/s41467-019-08604-4.
