@@ -233,7 +233,6 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
   #' @geneinfo(df): gene annotation data
   #' @achilles(df): gene dependency data
 
-
   if ((sourceGenes == c("C16orf72")) &
       (pos1==TRUE) & (neg1==TRUE) &
       (pos2==TRUE) & (neg2==FALSE) &
