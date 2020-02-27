@@ -766,7 +766,6 @@ server <- function(input, output, session) {
 
   # svg function 2: send network data to javascript listener
   observe({
-    input$downloadVectorImage
     if(!is.null(input$network_nodes)){
     # send network data
     session$sendCustomMessage("svg_handler_nodes", input$network_nodes)
