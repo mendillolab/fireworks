@@ -370,7 +370,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
 
 
       ##################### UI functions for multi-omics exploration ##########################
-      navbarMenu("Multi-omics",
+      navbarMenu("Multiomics",
 
         ####### UI functions
         tabPanel("RNA",
