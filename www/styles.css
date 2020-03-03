@@ -1,3 +1,64 @@
-#cy {
-background-color: green;
+#loading-content {
+  position: absolute;
+  background: #FFFFFF;
+  opacity: 0.9;
+  left: 48%;
+  top: 25%;
+  height: 100%;
+  text-align: center;
+  color: #FFFFFF;
+}
+
+.shiny-notification{
+  position: fixed;
+  top: 33%;
+  left: 50%;
+  width: 30%;
+  font-size: 15px;
+}
+
+label{font-size:12px;}
+.label2 {font-size:12px;}
+
+.selectize-input {margin-bottom: 0px;}
+
+.aboutText {
+  width: 70%;
+  font-size: 20px;
+  margin: 0 auto;
+  line-height: 1.4;
+  text-align: justify;
+}
+
+.multiOmicsWarning {
+  border-radius: 10px;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #fdc1ca;
+  color: #7b001d;
+  text-align: justify;
+  padding: 0px 20px;
+  margin: 20px;
+  background-color: #fed4d9;
+
+}
+
+#corrType{width=100%}
+
+#network_svg_canvas {
+  width: 800px;
+  height: 600px;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+
+}
+
+#legend {
+  position: relative !important;
+  left: 10% !important;
+}
+
+.progress-bar {
+  background-color: red;
 }
