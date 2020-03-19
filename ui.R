@@ -125,7 +125,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
              materialSwitch("second_order",
                            label="Secondary nodes",
                            status="primary",
-                           value=FALSE)),
+                           value=TRUE)),
 
               # Show isolated nodes (no second order connections)
               conditionalPanel(
@@ -170,7 +170,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
                ), # end of conditional panel
 
               # Show legend
-              checkboxInput("showLegend", "Show legend", FALSE),
+              #checkboxInput("showLegend", "Show legend", FALSE),
 
               # Build network
               fluidRow(
@@ -187,16 +187,16 @@ ui <- fluidPage(theme=shinytheme("paper"),
           ), # end of control panel div
 
           # Legend (optional)
-          fluidRow(
-            tags$div(id="legend",
-              img(src="legend.png", height="200px"),
-            )
-           )
-          ),
+          # fluidRow(
+          #   tags$div(id="legend",
+          #     img(src="legend.png", height="200px"),
+          #   )
+          #  )
+          ), # end of sidepanel
 
         # Main panel
         column(8,id="mainpanel",style="z-index:500",
-          visNetworkOutput("network", width="100%", height="700px"),
+          visNetworkOutput("network", width="100%", height="600px"),
           tabsetPanel(id="networkTabs")
        ) # end of main panel
      ) # end of sidebar layout
@@ -205,7 +205,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
        ##################### UI functions for co-essential heatmap ##########################
         tabPanel("Coessentiality Heatmap",
                  sidebarLayout(
-                   position="right",
+                   position="left",
                    sidebarPanel(
 
                      # Gene input
@@ -269,7 +269,7 @@ ui <- fluidPage(theme=shinytheme("paper"),
         ####### UI functions
         tabPanel("RNA",
           sidebarLayout(
-            position = "right",
+            position = "left",
             sidebarPanel(
 
               # Gene input

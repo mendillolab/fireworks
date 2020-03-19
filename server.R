@@ -71,7 +71,7 @@ server <- function(input, output, session) {
             removeTab(inputId="networkTabs", target="Edges")
             #removeTab(inputId="networkTabs", target="Essentiality")
             removeTab(inputId="networkTabs", target="Download")
-            removeTab(inputId="networkTabs", target="Legend")
+            #removeTab(inputId="networkTabs", target="Legend")
             networkTabsLoaded <<- FALSE
           }
 
@@ -89,12 +89,12 @@ server <- function(input, output, session) {
                                                           actionButton("downloadVectorImage", "Download Vector Image"),
 
                                                           HTML('<br /><br /><br />')))
-            appendTab(inputId="networkTabs", tab=tabPanel("Legend",
-                                                          HTML('<br />'),
-                                                          tags$div(id="legend2",
-                                                            img(src="legend.png", width="300px", align="middle")
-                                                          ),
-                                                          HTML('<br /><br />')))
+            # appendTab(inputId="networkTabs", tab=tabPanel("Legend",
+            #                                               HTML('<br />'),
+            #                                               tags$div(id="legend2",
+            #                                                 img(src="legend.png", width="300px", align="middle")
+            #                                               ),
+            #                                               HTML('<br /><br />')))
             networkTabsLoaded <<- TRUE
           }
 
@@ -141,7 +141,6 @@ server <- function(input, output, session) {
 
           # use SQL database for lineage-specific analyses
           else {
-            print("Use SQL database")
             if (secondOrder) {
               network <- buildNetworkSQL2(table=getLineageName(context), pool=pool, sourceGenes=sourceGenes, k1=k1, k2=k2,
                                       pos1=pos1, neg1=neg1, pos2=pos2, neg2=neg2,
@@ -164,8 +163,7 @@ server <- function(input, output, session) {
       # get network
       nodes <- codep_network()[[1]]
       edges <- codep_network()[[2]]
-
-
+      
       # create 'width' column (for edges)
       sourceNodes <- nodes %>% filter(type=="source") %>% select(gene) %>% unlist
       primaryEdges <- edges %>% filter(   source %in% sourceNodes  )
@@ -192,9 +190,10 @@ server <- function(input, output, session) {
                                               #aliases,"<br />",
                                               ifelse( ((aliases %>% is.na) | (nchar(aliases)==0)),"",paste0(aliases,"<br />") ),
                                               "<i>",name,"</i><br />",
-                                              "<b>Dependency:</b><br />",
+                                              "<b>Essentiality:</b><br />",
                                               "<b>Min: </b>",round(min,2)," <b>Median: </b>",round(median,2)," <b>Max: </b>",round(max,2),"<br />",
-                                              "<b>Q25: </b>",round(Q25,2)," <b>Q75: </b>",round(Q75,2),"<br />"
+                                              "<b>Q25: </b>",round(Q25,2)," <b>Q75: </b>",round(Q75,2),"<br />",
+                                              "&nbsp1 -> essential <br />&nbsp0 -> no fitness effect <br />-1 -> growth restricting"
                                               ))
       # create id > gene map.
       nodes[,"id"] <- c(1:nrow(nodes))
@@ -205,8 +204,6 @@ server <- function(input, output, session) {
       from <- id2geneMap[edges[,'source'] %>% unlist]
       to <- id2geneMap[edges[,'target'] %>% unlist]
       edges <- cbind(edges, from, to)
-
-      print(dim(nodes))
 
     visNetwork(nodes, edges) %>%
          visNodes(shape = "dot",

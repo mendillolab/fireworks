@@ -248,7 +248,7 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
       edges <- data.frame(source=sourceGenes,
                           target=sourceGenes,
                           color=rep("#", length(sourceGenes))) %>% mutate_all(as.character)
-
+      
       # fill out network for each source gene
       withProgress(message = "Adding primary connections for: ", value=0,{
       n <- length(sourceGenes)
@@ -263,6 +263,8 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
         network.new <- updateNetwork(nodes, edges, codeps, gene)
         nodes <- network.new[[1]]
         edges <- network.new[[2]]
+        
+        
 
       } # for (gene in sourceGenes)
     }) # withProgress
@@ -270,7 +272,7 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
       nodes <- nodes %>% mutate(
         type = ifelse(gene %in% sourceGenes, "source", "primary"),
         color = ifelse(gene %in% sourceGenes, "#ffbf8f", "#e6dcfc"))
-
+      
       # find secondary pools
       if (secondOrder){
         primaryGenes = edges[,'target'] %>% unique
@@ -296,9 +298,12 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
          network.new <- updateNetwork(nodes, edges, codeps, codep)
          nodes <- network.new[[1]]
          edges <- network.new[[2]]
+         
+         
 
 
        }}) # for (gene in primaryGenes) / }) end w/ progress
+
       } # if (secondOrder)
 
       # trim isolated nodes as indicated by showISN, showIPN
@@ -392,8 +397,6 @@ buildNetworkSQL2 <- function(table="pan_cancer_full", pool, sourceGenes, k1=10,
 
   # add gene annotation data
   network <- getGeneInfo(network[[1]], network[[2]], geneinfo, achilles)
-  #print(network[[1]][1,"aliases"] %>% class)
-  # return network
   return(network)
 
 } # buildNetworkSQL2
