@@ -29,7 +29,7 @@ source("R/differentialExpression.R")
 
 ############# connect to SQL database ##################
 SQLdata <- readRDS("data/sqlData.Rds")
-pool <- dbPool(
+pool <<- dbPool(
   drv = dbDriver("PostgreSQL"),
   host=SQLdata[[1]],
   port=as.numeric(SQLdata[[2]]),
