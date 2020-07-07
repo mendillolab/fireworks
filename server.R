@@ -78,8 +78,7 @@ server <- function(input, output, session) {
           if (networkTabsLoaded==FALSE){
             appendTab(inputId="networkTabs", tab=tabPanel("Nodes", DT::dataTableOutput("nodesTable")))
             appendTab(inputId="networkTabs", tab=tabPanel("Edges", DT::dataTableOutput("edgesTable")), select = TRUE)
-            #appendTab(inputId="networkTabs", tab=tabPanel("Essentiality",
-            #                                               HTML('<br />'),
+            #appendTab(inputId="networkTabs", tab=tabPanel("Essentiality", />'),
             #                                               plotlyOutput('depBoxPlot')), select = TRUE)
             appendTab(inputId="networkTabs", tab=tabPanel("Download",
                                                           HTML('<br />'),
@@ -93,8 +92,7 @@ server <- function(input, output, session) {
             #                                               HTML('<br />'),
             #                                               tags$div(id="legend2",
             #                                                 img(src="legend.png", width="300px", align="middle")
-            #                                               ),
-            #                                               HTML('<br /><br />')))
+            #                                               ), /><br />')))
             networkTabsLoaded <<- TRUE
           }
 
@@ -163,7 +161,7 @@ server <- function(input, output, session) {
       # get network
       nodes <- codep_network()[[1]]
       edges <- codep_network()[[2]]
-      
+
       # create 'width' column (for edges)
       sourceNodes <- nodes %>% filter(type=="source") %>% select(gene) %>% unlist
       primaryEdges <- edges %>% filter(   source %in% sourceNodes  )
@@ -190,6 +188,8 @@ server <- function(input, output, session) {
                                               #aliases,"<br />",
                                               ifelse( ((aliases %>% is.na) | (nchar(aliases)==0)),"",paste0(aliases,"<br />") ),
                                               "<i>",name,"</i><br />",
+                                              "<b>Interactions: </b><a href='http://www.dgidb.org/genes/",gene,"#_interactions'>",
+                                              interaction,"</a><br />",
                                               "<b>Essentiality:</b><br />",
                                               "<b>Min: </b>",round(min,2)," <b>Median: </b>",round(median,2)," <b>Max: </b>",round(max,2),"<br />",
                                               "<b>Q25: </b>",round(Q25,2)," <b>Q75: </b>",round(Q75,2),"<br />",
@@ -199,6 +199,7 @@ server <- function(input, output, session) {
       nodes[,"id"] <- c(1:nrow(nodes))
       id2geneMap <- nodes[,"id"] %>% unlist
       names(id2geneMap) <- nodes[,"gene"] %>% unlist
+      print(head(nodes$interaction, 58))
 
       # use map to make 'from'/'to' columns
       from <- id2geneMap[edges[,'source'] %>% unlist]
@@ -279,8 +280,8 @@ server <- function(input, output, session) {
   # Reactive value holding the selected dataset for download
   datasetNetwork <- reactive({
     switch(input$chooseDatasetNetwork,
-           "nodes" = codep_network()[[1]],
-           "edges" = codep_network()[[2]]
+           "nodes" = nodes,
+           "edges" = edges
            #"vector" = TRUE
           )
   })
