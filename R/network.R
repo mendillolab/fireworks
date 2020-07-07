@@ -205,10 +205,8 @@ getGeneInfo <- function(nodes, edges, geneinfo, achilles, context="pan_cancer") 
                               max=apply(achilles.nodes,2,maxApply),
                               Q25=apply(achilles.nodes,2,quantile25),
                               Q75=apply(achilles.nodes,2,quantile75))
-
   # merge with other nodes w/ nodes.withAchilles
   nodes <- merge(nodes, nodes.withAchilles, by="gene")
-
   return(list(nodes, edges))
 }
 
@@ -248,7 +246,7 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
       edges <- data.frame(source=sourceGenes,
                           target=sourceGenes,
                           color=rep("#", length(sourceGenes))) %>% mutate_all(as.character)
-      
+
       # fill out network for each source gene
       withProgress(message = "Adding primary connections for: ", value=0,{
       n <- length(sourceGenes)
@@ -263,8 +261,8 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
         network.new <- updateNetwork(nodes, edges, codeps, gene)
         nodes <- network.new[[1]]
         edges <- network.new[[2]]
-        
-        
+
+
 
       } # for (gene in sourceGenes)
     }) # withProgress
@@ -272,7 +270,7 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
       nodes <- nodes %>% mutate(
         type = ifelse(gene %in% sourceGenes, "source", "primary"),
         color = ifelse(gene %in% sourceGenes, "#ffbf8f", "#e6dcfc"))
-      
+
       # find secondary pools
       if (secondOrder){
         primaryGenes = edges[,'target'] %>% unique
@@ -298,8 +296,8 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
          network.new <- updateNetwork(nodes, edges, codeps, codep)
          nodes <- network.new[[1]]
          edges <- network.new[[2]]
-         
-         
+
+
 
 
        }}) # for (gene in primaryGenes) / }) end w/ progress
