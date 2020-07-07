@@ -188,7 +188,7 @@ server <- function(input, output, session) {
                                               #aliases,"<br />",
                                               ifelse( ((aliases %>% is.na) | (nchar(aliases)==0)),"",paste0(aliases,"<br />") ),
                                               "<i>",name,"</i><br />",
-                                              "<b>Interactions: </b> href='http://www.dgidb.org/genes/",gene,"#_interactions' target='_blank'>",
+                                              "<b>Interactions: </b><a target='_blank' href='http://www.dgidb.org/genes/",gene,"#_interactions'>",
                                               interaction,"</a><br />",
                                               "<b>Essentiality:</b><br />",
                                               "<b>Min: </b>",round(min,2)," <b>Median: </b>",round(median,2)," <b>Max: </b>",round(max,2),"<br />",
