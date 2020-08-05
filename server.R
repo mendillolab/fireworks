@@ -296,7 +296,7 @@ server <- function(input, output, session) {
   )
 
   ### load gene names for drop down
-  updateSelectizeInput(session, "genes_selected", choices = geneNames, selected=c("C16orf72"))
+  updateSelectizeInput(session, "genes_selected", choices = geneNames, selected=c("RHEB"))
   updateSelectizeInput(session, "geneCEHM", choices = geneNames, selected=c("C16orf72"))
   updateSelectizeInput(session, "genesRNA", choices = geneNames, selected=c("C16orf72"))
 
