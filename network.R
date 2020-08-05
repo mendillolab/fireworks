@@ -231,15 +231,15 @@ buildNetwork_local <- function(corrMat, sourceGenes, k1=10,
   #' @geneinfo(df): gene annotation data
   #' @achilles(df): gene dependency data
 
-  if ((sourceGenes == c("C16orf72")) &
+  if ((sourceGenes == c("RHEB")) &
       (pos1==TRUE) & (neg1==TRUE) &
       (pos2==TRUE) & (neg2==FALSE) &
       (secondOrder==TRUE) &
       (k1==30) & (k2==5) &
       (showIPN==FALSE) & (showISN==FALSE)){
     # load example network
-    nodes <- read_csv("data/C16orf72.30.nodes.csv") #nodes2
-    edges <- read_csv("data/C16orf72.30.edges.csv")
+    nodes <- read_csv("data/RHEB.30.nodes.csv") #nodes2
+    edges <- read_csv("data/RHEB.30.edges.csv")
   } else {
       # initialize network
       nodes <- data.frame(gene=sourceGenes) %>% mutate_all(as.character)
