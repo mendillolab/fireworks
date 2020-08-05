@@ -275,8 +275,8 @@ ui <- fluidPage(theme=shinytheme("paper"),
               # Gene input
               selectizeInput("genesRNA",
                         label = "Gene(s):",
-                        choices = c("RHEB"),
-                        selected = "RHEB",
+                        choices = c("C16orf72"),
+                        selected = "C16orf72",
                         multiple = TRUE),
 
               # Context input
