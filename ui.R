@@ -81,8 +81,8 @@ ui <- fluidPage(theme=shinytheme("paper"),
               # Gene input
               selectizeInput("genes_selected",
                           label = "Source node(s):",
-                          choices = c("C16orf72"),
-                          selected = c("C16orf72"),
+                          choices = c("RHEB"),
+                          selected = c("RHEB"),
                           # choices = c("EIF2AK1","EIF2AK2","EIF2AK3","EIF2AK4","TP53",
                           #               "ATM","HSF1","HSF2","ATF5","ERN1","XBP1","EIF2AK3",
                           #               "ATF6","HIF1A","ARNT","EPAS1","HIF3A","ATF3","EIF2AK2",
@@ -275,8 +275,8 @@ ui <- fluidPage(theme=shinytheme("paper"),
               # Gene input
               selectizeInput("genesRNA",
                         label = "Gene(s):",
-                        choices = c("C16orf72"),
-                        selected = "C16orf72",
+                        choices = c("RHEB"),
+                        selected = "RHEB",
                         multiple = TRUE),
 
               # Context input
